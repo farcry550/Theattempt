@@ -1,0 +1,137 @@
+//in1, HIGH forward. in3, HIGH forward.     in1 & 2 (en1) connected to right motor. in3 & 4 (en2) connected to left motor.
+//When you switch the terminals of a motor (positive and negative), you reverse the direction the motor turns.
+//The ultrasonic sensor has a trigger (trig) and echo (echo) pin. Trigger sends out a pulse of high frequency soundwaves, and echo listens for the soundwaves.
+
+int echo = 1;
+int button = 2;
+int trig = 3;
+int en1 = 5;
+int en2 = 6;
+int in1 = 13;
+int in2 = 12;
+int in3 = 11;
+int in4 = 10;
+
+Servo eyeServo;
+//------------------------------------------------------------------------
+void setup(){
+  eyeServo.attach(9);
+  pinMode(echo, INPUT);
+  pinMode(button, INPUT);
+  pinMode(trig,OUTPUT);
+  pinMode(en1, OUTPUT);
+  pinMode(en2, OUTPUT);
+  pinMode(in1, OUTPUT);
+  pinMode(in2, OUTPUT);
+  pinMode(in3, OUTPUT);
+  pinMode(in4, OUTPUT);
+  eyeServo.write(90);
+  delay(6000);
+}
+//------------------------------------------------------------------------
+void loop(){
+    Scan();                       //Function call (Go to 'Scan' function)
+    Action();                     //Function call (Go to 'Action' function)
+}
+//------------------------------------------------------------------------
+long distL, distF, distR;         //Measurements to be stored
+int servoPos = 20;                //servo positions = 20, 90, 160
+void Scan(){                      //Initiate function named 'Scan.'
+  digitalWrite(in1, LOW);         //Stop all motors for accurate distance reading
+  digitalWrite(in2, LOW);
+  digitalWrite(in3, LOW);
+  digitalWrite(in4, LOW);
+  for(int i = 0; i < 3; i++){     //While 'i' is less than 3, increase 'i' by one.
+  eyeServo.write(servoPos);       //Write to the servo the value of 'servoPos', which could be either 20, 90, 160.
+  digitalWrite(trig, LOW);        //Sets trigger pin low to ensure that the trigger pin is not transmitting (Gives accurate reading).
+  delayMicroseconds(5);           //Ensures the arduino turns the pin off.
+  digitalWrite(trig, HIGH);       //Tells the trigger pin to send out a pulse.
+  delayMicroseconds(10);          //Allows soundwaves to travel.
+  digitalWrite(trig, LOW);        //Turns the trigger pin off.
+  if(servoPos == 20){             //If the current servo position is at 20 degrees, then...
+    distL = ((pulseIn(echo, HIGH)/2)/29.1); //pulseIn explanation - https://www.arduino.cc/en/Reference/PulseIn
+  }
+  else if(servoPos == 90){        //If the current servo position is at 90 degrees, then...
+    distF = ((pulseIn(echo, HIGH)/2)/29.1);
+  }
+  else if(servoPos == 160){       //If the current servo position is at 160 degrees, then...
+    distR = ((pulseIn(echo, HIGH)/2)/29.1);
+  }
+  servoPos = servoPos + 70;       //Change the current servo position to the next servo position (20, 90, and 160).
+  delay(200);                     //Delay to prevent servo from attaining austism.
+  }
+   servoPos = 20;                 //After all the if statements, set servoPos to 20 for the next call of the 'Scan' function.
+   eyeServo.write(90);
+}
+//--------------------------------------------------------------------------
+void Action(){                    //Initiate function named 'Action.'
+  analogWrite(en1, 200);          //Adjusts speed of motor
+  analogWrite(en2, 150);          //
+  if(distL > 12 && distF > 12 && distR > 12){   //If there is nothing in front, to the left, or right, go straight.
+    analogWrite(en1, 255);
+    analogWrite(en2, 205);
+    digitalWrite(in1, HIGH);      //Connects right motor pos. lead to power.
+    digitalWrite(in2, LOW);       //Connects right motor neg. lead to ground.
+    digitalWrite(in3, HIGH);      //Connects left motor pos. lead to power.
+    digitalWrite(in4, LOW);       //Conneccts left motor neg. lead to ground.
+    delay(500);
+    digitalWrite(in1, LOW);       //Stops both motors.
+    digitalWrite(in3, LOW);       //
+  }
+  else if(distL < 12 && distF > 12 && distR > 12){   //If there is something to the left, turn right.
+    digitalWrite(in3, HIGH);      //Connects left motor neg. to power.
+    digitalWrite(in4, LOW);       //Connectes left motor pos. to ground.
+    digitalWrite(in1, LOW);       
+    digitalWrite(in2, HIGH);
+    delay(250);
+    digitalWrite(in3, LOW);
+    digitalWrite(in2, LOW);
+  }
+  else if(distR < 12 && distF > 12 && distL > 12){    //If there is something to the right, turn left.
+    digitalWrite(in1, HIGH);
+    digitalWrite(in2, LOW);
+    digitalWrite(in3, LOW);
+    digitalWrite(in4, HIGH);
+    delay(250);
+    digitalWrite(in1, LOW);
+    digitalWrite(in4, LOW);
+  }
+  else if(distF < 12){            //If there is something directly in front, then scan to the left and right.
+    long left, right;
+    eyeServo.write(0);
+    digitalWrite(trig, LOW);
+    delayMicroseconds(5);
+    digitalWrite(trig, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trig, LOW);
+    left = ((pulseIn(echo, HIGH)/2)/29.1);
+    delay(500);
+    eyeServo.write(180);
+    digitalWrite(trig, LOW);
+    delayMicroseconds(5);
+    digitalWrite(trig, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trig, LOW);
+    right = ((pulseIn(echo, HIGH)/2)/29.1);
+    delay(500);
+    eyeServo.write(90);
+    if(left > 12){              //If there is nothing to the left, turn left.
+      digitalWrite(in1, HIGH);
+      digitalWrite(in2, LOW);
+      digitalWrite(in3, LOW);
+      digitalWrite(in4, HIGH);
+      delay(500);
+      digitalWrite(in1, LOW);
+      digitalWrite(in4, LOW);
+    }
+    else if(right > 12){        //If there is nothing to the right, turn right.
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, HIGH);
+      digitalWrite(in3, HIGH);
+      digitalWrite(in4, LOW);
+      delay(500);
+      digitalWrite(in2, LOW);
+      digitalWrite(in3, LOW);
+    }
+  }
+}
